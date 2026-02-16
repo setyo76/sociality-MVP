@@ -17,7 +17,6 @@ export default function FeedPage() {
   const [activeTab, setActiveTab] = useState<"feed" | "explore">("feed");
   const observerTarget = useRef<HTMLDivElement>(null);
   
-  // ← GET ALL STATE (feed AND explore)
   const { 
     feed, 
     explore,
@@ -31,7 +30,6 @@ export default function FeedPage() {
   
   const { user, isLoading } = useSelector((state: RootState) => state.auth);
 
-  // Fetch user on mount
   useEffect(() => {
     if (!user && !isLoading) {
       console.log("👤 Fetching current user...");
@@ -39,7 +37,6 @@ export default function FeedPage() {
     }
   }, [dispatch, user, isLoading]);
 
-  // Initial feed fetch
   useEffect(() => {
     if (feed.length === 0) {
       console.log("📱 Initial feed fetch...");
@@ -47,7 +44,6 @@ export default function FeedPage() {
     }
   }, [dispatch, feed.length]);
 
-  // ← HANDLE TAB SWITCH - FETCH EXPLORE
   useEffect(() => {
     console.log("🔄 Tab changed to:", activeTab);
     
@@ -57,13 +53,11 @@ export default function FeedPage() {
     }
   }, [activeTab, dispatch, explore.length, isLoadingExplore]);
 
-  // ← GET CURRENT DATA BASED ON ACTIVE TAB
   const currentPosts = activeTab === "feed" ? feed : explore;
   const isLoadingPosts = activeTab === "feed" ? isLoadingFeed : isLoadingExplore;
   const currentPage = activeTab === "feed" ? feedPage : explorePage;
   const hasMore = activeTab === "feed" ? feedHasMore : exploreHasMore;
 
-  // ← INFINITE SCROLL FOR BOTH TABS
   const loadMore = useCallback(() => {
     if (!isLoadingPosts && hasMore) {
       console.log(`📦 Loading more ${activeTab} - page ${currentPage + 1}`);
@@ -99,28 +93,20 @@ export default function FeedPage() {
 
   const hasPosts = Array.isArray(currentPosts) && currentPosts.length > 0;
 
-  console.log("📊 Render:", {
-    activeTab,
-    feedCount: feed.length,
-    exploreCount: explore.length,
-    currentPostsCount: currentPosts.length,
-    hasPosts
-  });
-
   return (
     <div className="min-h-screen bg-black text-white">
       {/* HEADER - Desktop */}
       <header className="hidden md:flex fixed top-0 left-0 right-0 h-20 bg-black border-b border-white/10 z-50 items-center">
         <div className="w-full px-[120px] flex items-center justify-between gap-6">
-          <Link href="/feed" className="flex items-center gap-2 min-w-[180px]">
+          <Link href="/feed" className="flex items-center gap-2 min-w-[180px] cursor-pointer hover:opacity-80 transition-opacity">
             <Image src="/Logo.png" alt="Sociality" width={32} height={32} />
             <span className="text-xl font-bold uppercase tracking-wider">Sociality</span>
           </Link>
 
           <SearchBar />
 
-          <Link href="/me" className="flex items-center gap-3 min-w-[180px] justify-end group">
-            <span className="font-medium text-sm">{user?.name || "Loading..."}</span>
+          <Link href="/me" className="flex items-center gap-3 min-w-[180px] justify-end group cursor-pointer">
+            <span className="font-medium text-sm group-hover:text-purple-400 transition-colors">{user?.name || "Loading..."}</span>
             <div className="w-10 h-10 rounded-full bg-zinc-800 border border-white/10 overflow-hidden ring-2 ring-transparent group-hover:ring-purple-500/50 transition-all flex items-center justify-center">
               {user?.avatar ? (
                 <Image src={user.avatar} alt={user.name || "Profile"} width={40} height={40} className="object-cover" />
@@ -136,12 +122,12 @@ export default function FeedPage() {
 
       {/* HEADER - Mobile */}
       <header className="md:hidden fixed top-0 left-0 right-0 h-16 bg-black border-b border-white/10 z-50 flex items-center px-4">
-        <Link href="/feed" className="flex items-center gap-2 flex-1">
+        <Link href="/feed" className="flex items-center gap-2 flex-1 cursor-pointer active:opacity-70 transition-opacity">
           <Image src="/Logo.png" alt="Sociality" width={28} height={28} />
           <span className="text-lg font-bold uppercase tracking-wider">Sociality</span>
         </Link>
         <SearchBar />
-        <Link href="/me" className="ml-2">
+        <Link href="/me" className="ml-2 cursor-pointer active:opacity-70 transition-opacity">
           <div className="w-9 h-9 rounded-full bg-zinc-800 border border-white/10 overflow-hidden flex items-center justify-center">
             {user?.avatar ? (
               <Image src={user.avatar} alt={user.name || "Profile"} width={36} height={36} className="object-cover" />
@@ -163,10 +149,10 @@ export default function FeedPage() {
               console.log("👆 Feed clicked");
               setActiveTab("feed");
             }}
-            className={`flex items-center gap-2 px-8 py-2.5 rounded-xl text-sm font-bold transition-all ${
+            className={`flex items-center gap-2 px-8 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer ${
               activeTab === "feed" 
                 ? "bg-white text-black" 
-                : "text-zinc-500 hover:text-white"
+                : "text-zinc-500 hover:text-white hover:bg-white/5"
             }`}
           >
             <Home className="w-4 h-4" /> Feed
@@ -176,10 +162,10 @@ export default function FeedPage() {
               console.log("👆 Explore clicked");
               setActiveTab("explore");
             }}
-            className={`flex items-center gap-2 px-8 py-2.5 rounded-xl text-sm font-bold transition-all ${
+            className={`flex items-center gap-2 px-8 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer ${
               activeTab === "explore" 
                 ? "bg-white text-black" 
-                : "text-zinc-500 hover:text-white"
+                : "text-zinc-500 hover:text-white hover:bg-white/5"
             }`}
           >
             <Compass className="w-4 h-4" /> Explore
@@ -205,7 +191,7 @@ export default function FeedPage() {
                 : "Be the first to share something amazing!"}
             </p>
             <Link href="/create">
-              <button className="px-8 py-3 bg-purple-600 text-white font-semibold rounded-full hover:bg-purple-700 transition-all">
+              <button className="px-8 py-3 bg-purple-600 text-white font-semibold rounded-full hover:bg-purple-700 hover:scale-105 active:scale-95 transition-all shadow-lg shadow-purple-500/20 cursor-pointer">
                 Create Your First Post
               </button>
             </Link>
@@ -217,9 +203,10 @@ export default function FeedPage() {
                 key={post.id} 
                 className="bg-[#121212]/50 border border-white/10 rounded-3xl overflow-hidden hover:border-white/20 transition-all"
               >
+                {/* Post Header */}
                 <div className="p-4 flex items-center justify-between">
-                  <Link href={`/profile/${post.author?.username || "unknown"}`}>
-                    <div className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity">
+                  <Link href={`/profile/${post.author?.username || "unknown"}`} className="cursor-pointer">
+                    <div className="flex items-center gap-3 hover:opacity-80 transition-opacity">
                       <div className="w-9 h-9 rounded-full bg-zinc-800 overflow-hidden border border-white/10">
                         {post.author?.avatar || post.author?.avatarUrl ? (
                           <Image 
@@ -242,41 +229,84 @@ export default function FeedPage() {
                   </Link>
                 </div>
 
+                {/* Post Image */}
                 {post.imageUrl && (
-                  <Link href={`/posts/${post.id}`}>
-                    <div className="relative w-full aspect-square bg-zinc-900 cursor-pointer">
+                  <Link href={`/posts/${post.id}`} className="cursor-pointer">
+                    <div className="relative w-full aspect-square bg-zinc-900 overflow-hidden group">
                       <Image 
                         src={post.imageUrl} 
                         alt={post.caption || "Post"} 
                         fill
                         sizes="(max-width: 768px) 100vw, 672px"
-                        className="object-cover" 
+                        className="object-cover group-hover:scale-105 transition-transform duration-300" 
                       />
                     </div>
                   </Link>
                 )}
 
+                {/* Post Actions & Info */}
                 <div className="p-5">
-                  <div className="flex gap-4 mb-3 text-zinc-400">
-                    <button className="hover:text-red-500 transition-colors">
-                      <Heart className="w-6 h-6" />
+                  {/* Action Buttons with Counts */}
+                  <div className="flex gap-4 mb-3">
+                    {/* Like Button with Count */}
+                    <button 
+                      className={`flex items-center gap-1.5 transition-all cursor-pointer group ${
+                        post.likedByMe 
+                          ? "text-red-500" 
+                          : "text-zinc-400 hover:text-red-500"
+                      }`}
+                    >
+                      <Heart 
+                        className={`w-6 h-6 group-hover:scale-110 group-active:scale-95 transition-transform ${
+                          post.likedByMe ? "fill-red-500" : ""
+                        }`} 
+                      />
+                      {post.likeCount > 0 && (
+                        <span className="text-sm font-semibold">{post.likeCount}</span>
+                      )}
                     </button>
-                    <Link href={`/posts/${post.id}`}>
-                      <button className="hover:text-purple-400 transition-colors">
-                        <MessageCircle className="w-6 h-6" />
+
+                    {/* Comment Button with Count */}
+                    <Link href={`/posts/${post.id}`} className="cursor-pointer">
+                      <button className="flex items-center gap-1.5 text-zinc-400 hover:text-purple-400 transition-all group">
+                        <MessageCircle className="w-6 h-6 group-hover:scale-110 group-active:scale-95 transition-transform" />
+                        {post.commentCount > 0 && (
+                          <span className="text-sm font-semibold">{post.commentCount}</span>
+                        )}
                       </button>
                     </Link>
                   </div>
 
+                  {/* Like Summary (if has likes) */}
+                  {post.likeCount > 0 && (
+                    <p className="text-sm font-semibold text-white mb-2">
+                      {post.likeCount === 1 
+                        ? "1 like" 
+                        : `${post.likeCount.toLocaleString()} likes`}
+                    </p>
+                  )}
+
+                  {/* Caption */}
                   {post.caption && (
-                    <p className="text-sm text-zinc-300">
-                      <Link href={`/profile/${post.author?.username || "unknown"}`}>
-                        <span className="font-bold text-white mr-2 hover:opacity-80 cursor-pointer">
+                    <p className="text-sm text-zinc-300 mb-2">
+                      <Link href={`/profile/${post.author?.username || "unknown"}`} className="cursor-pointer">
+                        <span className="font-bold text-white mr-2 hover:text-purple-400 transition-colors">
                           {post.author?.username || "unknown"}
                         </span>
                       </Link>
                       {post.caption}
                     </p>
+                  )}
+
+                  {/* View Comments Link (if has comments) */}
+                  {post.commentCount > 0 && (
+                    <Link href={`/posts/${post.id}`} className="cursor-pointer">
+                      <p className="text-sm text-zinc-500 hover:text-zinc-400 transition-colors">
+                        View {post.commentCount === 1 
+                          ? "1 comment" 
+                          : `all ${post.commentCount} comments`}
+                      </p>
+                    </Link>
                   )}
                 </div>
               </article>
@@ -296,17 +326,19 @@ export default function FeedPage() {
       {/* BOTTOM NAV */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 h-20 bg-zinc-900/95 backdrop-blur-lg border-t border-white/10 z-50">
         <div className="flex items-center justify-around h-full px-6">
-          <Link href="/feed" className="flex flex-col items-center gap-1">
-            <Home className="w-6 h-6 text-white" />
+          <Link href="/feed" className="flex flex-col items-center gap-1 group cursor-pointer active:scale-95 transition-transform">
+            <Home className="w-6 h-6 text-white group-active:text-purple-400 transition-colors" />
             <span className="text-xs font-medium text-white">Home</span>
           </Link>
-          <Link href="/create" className="relative -mt-6">
-            <div className="w-14 h-14 bg-purple-600 rounded-full flex items-center justify-center shadow-lg shadow-purple-500/30">
+
+          <Link href="/create" className="relative -mt-6 cursor-pointer">
+            <div className="w-14 h-14 bg-purple-600 rounded-full flex items-center justify-center shadow-lg shadow-purple-500/30 hover:bg-purple-700 hover:scale-110 active:scale-95 transition-all">
               <Plus className="w-7 h-7 text-white" />
             </div>
           </Link>
-          <Link href="/me" className="flex flex-col items-center gap-1">
-            <User className="w-6 h-6 text-zinc-400" />
+
+          <Link href="/me" className="flex flex-col items-center gap-1 group cursor-pointer active:scale-95 transition-transform">
+            <User className="w-6 h-6 text-zinc-400 group-active:text-purple-400 transition-colors" />
             <span className="text-xs font-medium text-zinc-400">Profile</span>
           </Link>
         </div>

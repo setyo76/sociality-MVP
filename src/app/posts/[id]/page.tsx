@@ -1,527 +1,360 @@
 // src/app/posts/[id]/page.tsx
 
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { useSelector } from 'react-redux';
-import { RootState } from '@/store';
-import { postsService, likesService, commentsService } from '@/services/api';
-import { Post, Comment } from '@/types';
-import { 
-  ArrowLeft, 
-  Heart, 
-  MessageCircle, 
-  Bookmark, 
-  MoreHorizontal, 
-  Trash2, 
-  Loader2,
-  Send 
-} from 'lucide-react';
-import Link from 'next/link';
-import Image from 'next/image';
-import dayjs from 'dayjs';
-import relativeTime from 'dayjs/plugin/relativeTime';
-import 'dayjs/locale/id';
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft, Heart, MessageCircle, Send, Loader2, MoreVertical } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+import { postsService, commentsService } from "@/services/api";
 
-// Setup dayjs
-dayjs.extend(relativeTime);
-dayjs.locale('id');
+interface Author {
+  id: number;
+  username: string;
+  name: string;
+  avatar?: string | null;
+  avatarUrl?: string | null;
+}
+
+interface Post {
+  id: number;
+  imageUrl: string;
+  caption?: string | null;
+  createdAt: string;
+  author: Author;
+  likeCount: number;
+  commentCount: number;
+  likedByMe: boolean;
+}
+
+interface Comment {
+  id: number;
+  content: string;
+  createdAt: string;
+  author: Author;
+}
 
 export default function PostDetailPage() {
   const params = useParams();
   const router = useRouter();
   const postId = params.id as string;
-  
-  const { user } = useSelector((state: RootState) => state.auth);
-  
+
   const [post, setPost] = useState<Post | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingComments, setIsLoadingComments] = useState(false);
-  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [commentsPage, setCommentsPage] = useState(1);
-  const [hasMoreComments, setHasMoreComments] = useState(true);
-  const [newComment, setNewComment] = useState('');
-  const [isLiked, setIsLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(0);
-  const [commentCount, setCommentCount] = useState(0);
-  const [isSaved, setIsSaved] = useState(false);
-  const [showOptions, setShowOptions] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [isLoadingPost, setIsLoadingPost] = useState(true);
+  const [isLoadingComments, setIsLoadingComments] = useState(true);
+  const [commentText, setCommentText] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Debugging
+  // Fetch post details
   useEffect(() => {
-    console.log('📊 PostDetail mounted with postId:', postId);
-    console.log('👤 Current user:', user);
-  }, [postId, user]);
+    const fetchPost = async () => {
+      try {
+        setIsLoadingPost(true);
+        console.log("📥 Fetching post:", postId);
+        
+        const response = await postsService.getPost(postId);
+        console.log("✅ Post response:", response);
+        
+        // Handle nested response structure
+        const postData = response.data?.post || response.post || response.data || response;
+        
+        setPost(postData);
+      } catch (error) {
+        console.error("❌ Error fetching post:", error);
+      } finally {
+        setIsLoadingPost(false);
+      }
+    };
 
-  // Fetch post detail
-  useEffect(() => {
-    fetchPostDetail();
-    fetchComments(1, true);
+    if (postId) {
+      fetchPost();
+    }
   }, [postId]);
 
-  const fetchPostDetail = async () => {
-    try {
-      setIsLoading(true);
-      console.log('🔍 Fetching post detail for ID:', postId);
-      
-      const data = await postsService.getPost(postId);
-      console.log('✅ Post detail received:', data);
-      
-      setPost(data);
-      setIsLiked(data.likedByMe || false);
-      setLikeCount(data.likeCount || 0);
-      setCommentCount(data.commentCount || 0);
-      setIsSaved(data.savedByMe || false);
-    } catch (err: any) {
-      console.error('❌ Error fetching post:', err);
-      console.error('❌ Error response:', err.response?.data);
-      console.error('❌ Error status:', err.response?.status);
-      setError('Failed to load post');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const fetchComments = async (page: number, reset = false) => {
-    try {
-      setIsLoadingComments(true);
-      const response = await commentsService.getComments(postId, page, 10);
-      console.log('✅ Comments received:', response);
-      
-      const newComments = response.data || [];
-      setComments(prev => reset ? newComments : [...prev, ...newComments]);
-      setCommentsPage(page);
-      setHasMoreComments(newComments.length === 10);
-    } catch (err) {
-      console.error('Error fetching comments:', err);
-    } finally {
-      setIsLoadingComments(false);
-    }
-  };
-
-  const handleLoadMoreComments = () => {
-    if (!isLoadingComments && hasMoreComments) {
-      fetchComments(commentsPage + 1);
-    }
-  };
-
-  const handleLike = async () => {
-    const newLikedState = !isLiked;
-    setIsLiked(newLikedState);
-    setLikeCount(prev => newLikedState ? prev + 1 : prev - 1);
-
-    try {
-      if (newLikedState) {
-        await likesService.likePost(postId);
-      } else {
-        await likesService.unlikePost(postId);
-      }
-    } catch (err) {
-      setIsLiked(!newLikedState);
-      setLikeCount(prev => newLikedState ? prev - 1 : prev + 1);
-      console.error('Error toggling like:', err);
-    }
-  };
-
-  const handleSave = async () => {
-    const newSavedState = !isSaved;
-    setIsSaved(newSavedState);
-
-    try {
-      if (newSavedState) {
-        console.log('Save post:', postId);
-      } else {
-        console.log('Unsave post:', postId);
-      }
-    } catch (err) {
-      setIsSaved(!newSavedState);
-      console.error('Error toggling save:', err);
-    }
-  };
-
-  const handleSubmitComment = async () => {
-    if (!newComment.trim() || isSubmittingComment) return;
-
-    const commentText = newComment.trim();
-    setNewComment('');
-
-    try {
-      setIsSubmittingComment(true);
-      
-      const tempId = Date.now();
-      const tempComment: Comment = {
-        id: tempId,
-        content: commentText,
-        createdAt: new Date().toISOString(),
-        author: {
-          id: user?.id || 0,
-          username: user?.username || '',
-          name: user?.name || '',
-          avatar: user?.avatar || null
+  // Fetch comments
+  useEffect(() => {
+    const fetchComments = async () => {
+      try {
+        setIsLoadingComments(true);
+        console.log("💬 Fetching comments for post:", postId);
+        
+        const response = await commentsService.getComments(postId);
+        console.log("✅ Comments response:", response);
+        
+        // Handle different response structures
+        let commentsData: Comment[] = [];
+        
+        if (response.data && Array.isArray(response.data.comments)) {
+          commentsData = response.data.comments;
+        } else if (Array.isArray(response.comments)) {
+          commentsData = response.comments;
+        } else if (response.data && Array.isArray(response.data)) {
+          commentsData = response.data;
+        } else if (Array.isArray(response)) {
+          commentsData = response;
         }
-      };
-      
-      setComments(prev => [tempComment, ...prev]);
-      setCommentCount(prev => prev + 1);
+        
+        console.log("📋 Parsed comments:", commentsData);
+        setComments(commentsData);
+      } catch (error) {
+        console.error("❌ Error fetching comments:", error);
+        setComments([]); // Set empty array on error
+      } finally {
+        setIsLoadingComments(false);
+      }
+    };
 
-      const newCommentData = await commentsService.addComment(postId, commentText);
-      console.log('✅ Comment added:', newCommentData);
-      
-      setComments(prev => 
-        prev.map(c => c.id === tempId ? newCommentData : c)
-      );
-      
-    } catch (err: any) {
-      console.error('❌ Error adding comment:', err);
-      console.error('❌ Error response:', err.response?.data);
-      
-      setComments(prev => prev.filter(c => c.id !== Date.now()));
-      setCommentCount(prev => prev - 1);
-      setNewComment(commentText);
-      
-      alert('Failed to add comment. Please try again.');
-    } finally {
-      setIsSubmittingComment(false);
+    if (postId) {
+      fetchComments();
     }
-  };
+  }, [postId]);
 
-  const handleDeleteComment = async (commentId: number) => {
-    try {
-      setComments(prev => prev.filter(c => c.id !== commentId));
-      setCommentCount(prev => prev - 1);
-      
-      await commentsService.deleteComment(commentId.toString());
-    } catch (err) {
-      fetchComments(1, true);
-      console.error('Error deleting comment:', err);
-    }
-  };
-
-  const handleDeletePost = async () => {
-    if (!window.confirm('Are you sure you want to delete this post?')) return;
+  // Submit comment
+  const handleSubmitComment = async (e: React.FormEvent) => {
+    e.preventDefault();
     
+    if (!commentText.trim()) return;
+
     try {
-      setIsDeleting(true);
-      await postsService.deletePost(postId);
-      router.push('/feed');
-    } catch (err) {
-      console.error('Error deleting post:', err);
-      setIsDeleting(false);
+      setIsSubmitting(true);
+      console.log("💬 Submitting comment:", commentText);
+      
+      const newComment = await commentsService.addComment(postId, commentText);
+      console.log("✅ Comment added:", newComment);
+      
+      // Add new comment to list
+      setComments([newComment, ...comments]);
+      setCommentText("");
+      
+      // Update comment count in post
+      if (post) {
+        setPost({ ...post, commentCount: post.commentCount + 1 });
+      }
+    } catch (error) {
+      console.error("❌ Error adding comment:", error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const isOwner = post?.author?.id === user?.id;
-
-  if (isLoading) {
+  if (isLoadingPost) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+      <div className="min-h-screen bg-black flex items-center justify-center">
         <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
       </div>
     );
   }
 
-  if (error || !post) {
+  if (!post) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-zinc-400 mb-4">{error || 'Post not found'}</p>
-          <button
-            onClick={() => router.back()}
-            className="px-6 py-2 bg-purple-600 text-white rounded-full hover:bg-purple-700 transition-colors"
-          >
-            Go Back
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center text-white">
+        <h2 className="text-2xl font-bold mb-4">Post not found</h2>
+        <Link href="/feed">
+          <button className="px-6 py-3 bg-purple-600 rounded-full hover:bg-purple-700 transition-all">
+            Back to Feed
           </button>
-        </div>
+        </Link>
       </div>
     );
   }
 
+  const avatarUrl = post.author?.avatarUrl || post.author?.avatar;
+
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 h-16 bg-black/80 backdrop-blur-lg border-b border-white/10 z-50 flex items-center px-4">
-        <button
-          onClick={() => router.back()}
-          className="p-2 hover:bg-white/10 rounded-full transition-colors"
+      <header className="fixed top-0 left-0 right-0 h-16 bg-black border-b border-white/10 z-50 flex items-center px-4">
+        <button 
+          onClick={() => router.back()} 
+          className="mr-3 cursor-pointer hover:opacity-70 transition-opacity"
         >
-          <ArrowLeft className="w-5 h-5" />
+          <ArrowLeft className="w-6 h-6" />
         </button>
-        <h1 className="flex-1 text-center font-semibold">Post</h1>
-        {isOwner && (
-          <div className="relative">
-            <button
-              onClick={() => setShowOptions(!showOptions)}
-              className="p-2 hover:bg-white/10 rounded-full transition-colors"
-            >
-              <MoreHorizontal className="w-5 h-5" />
-            </button>
-            
-            {showOptions && (
-              <>
-                <div 
-                  className="fixed inset-0 z-40"
-                  onClick={() => setShowOptions(false)}
-                />
-                <div className="absolute right-0 mt-2 w-48 bg-zinc-900 border border-white/10 rounded-xl shadow-lg overflow-hidden z-50">
-                  <button
-                    onClick={handleDeletePost}
-                    disabled={isDeleting}
-                    className="w-full px-4 py-3 text-left text-red-500 hover:bg-white/10 flex items-center gap-2 transition-colors"
-                  >
-                    {isDeleting ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="w-4 h-4" />
-                    )}
-                    Delete Post
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        )}
+        <h1 className="text-lg font-bold">Post</h1>
       </header>
 
-      {/* Main Content */}
-      <main className="pt-16 pb-8 max-w-2xl mx-auto">
-        {/* Post Card */}
-        <div className="bg-[#121212] border-b border-white/10">
-          {/* Author Info */}
+      {/* Content */}
+      <main className="pt-16 pb-24 max-w-2xl mx-auto">
+        {/* Post */}
+        <article className="border-b border-white/10">
+          {/* Post Header */}
           <div className="p-4 flex items-center justify-between">
-            <Link href={`/profile/${post.author?.username}`}>
+            <Link href={`/profile/${post.author?.username || "unknown"}`} className="cursor-pointer">
               <div className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-                <div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden">
-                  {post.author?.avatar ? (
-                    <Image
-                      src={post.author.avatar}
-                      alt={post.author.name || 'User'}
-                      width={40}
-                      height={40}
-                      className="w-full h-full object-cover"
+                <div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden border border-white/10">
+                  {avatarUrl ? (
+                    <Image 
+                      src={avatarUrl} 
+                      alt={post.author.name} 
+                      width={40} 
+                      height={40} 
+                      className="w-full h-full object-cover" 
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-purple-600 text-white font-bold">
-                      {post.author?.name?.[0]?.toUpperCase() || 'U'}
+                      {post.author.name?.[0]?.toUpperCase() || "U"}
                     </div>
                   )}
                 </div>
                 <div>
-                  <p className="font-semibold">{post.author?.name || 'Unknown'}</p>
-                  <p className="text-xs text-zinc-500">
-                    {dayjs(post.createdAt).fromNow()}
-                  </p>
+                  <p className="font-bold">{post.author.name}</p>
+                  <p className="text-xs text-zinc-400">@{post.author.username}</p>
                 </div>
               </div>
             </Link>
+            <button className="p-2 hover:bg-white/5 rounded-full transition-colors cursor-pointer">
+              <MoreVertical className="w-5 h-5 text-zinc-400" />
+            </button>
           </div>
 
           {/* Post Image */}
           {post.imageUrl && (
-            <div className="relative w-full aspect-square bg-black">
-              <Image
-                src={post.imageUrl}
-                alt={post.caption || 'Post image'}
+            <div className="relative w-full aspect-square bg-zinc-900">
+              <Image 
+                src={post.imageUrl} 
+                alt={post.caption || "Post"} 
                 fill
-                sizes="(max-width: 768px) 100vw, 600px"
-                className="object-contain"
-                priority
+                sizes="(max-width: 768px) 100vw, 672px"
+                className="object-cover" 
               />
             </div>
           )}
 
-          {/* Actions */}
+          {/* Post Actions */}
           <div className="p-4">
-            <div className="flex items-center gap-4 mb-3">
-              <button
-                onClick={handleLike}
-                className="transition-colors hover:scale-110 active:scale-95"
+            <div className="flex gap-4 mb-3">
+              <button 
+                className={`flex items-center gap-1.5 transition-all cursor-pointer group ${
+                  post.likedByMe ? "text-red-500" : "text-zinc-400 hover:text-red-500"
+                }`}
               >
-                <Heart
-                  className={`w-7 h-7 ${
-                    isLiked ? 'fill-red-500 text-red-500' : 'text-zinc-400'
-                  }`}
+                <Heart 
+                  className={`w-6 h-6 group-hover:scale-110 group-active:scale-95 transition-transform ${
+                    post.likedByMe ? "fill-red-500" : ""
+                  }`} 
                 />
+                {post.likeCount > 0 && (
+                  <span className="text-sm font-semibold">{post.likeCount}</span>
+                )}
               </button>
-              <Link href={`/posts/${post.id}`}>
-                <MessageCircle className="w-7 h-7 text-zinc-400 hover:text-purple-400 transition-colors" />
-              </Link>
-              <button
-                onClick={handleSave}
-                className="ml-auto hover:scale-110 active:scale-95 transition-transform"
-              >
-                <Bookmark
-                  className={`w-7 h-7 ${
-                    isSaved ? 'fill-yellow-500 text-yellow-500' : 'text-zinc-400'
-                  }`}
-                />
+
+              <button className="flex items-center gap-1.5 text-zinc-400 hover:text-purple-400 transition-all group cursor-pointer">
+                <MessageCircle className="w-6 h-6 group-hover:scale-110 group-active:scale-95 transition-transform" />
+                {post.commentCount > 0 && (
+                  <span className="text-sm font-semibold">{post.commentCount}</span>
+                )}
               </button>
             </div>
 
             {/* Like Count */}
-            {likeCount > 0 && (
+            {post.likeCount > 0 && (
               <p className="text-sm font-semibold mb-2">
-                {likeCount.toLocaleString()} likes
+                {post.likeCount === 1 ? "1 like" : `${post.likeCount.toLocaleString()} likes`}
               </p>
             )}
 
             {/* Caption */}
             {post.caption && (
-              <div className="mb-2">
-                <Link href={`/profile/${post.author?.username}`}>
-                  <span className="font-semibold mr-2 hover:underline">
-                    {post.author?.username}
+              <p className="text-sm">
+                <Link href={`/profile/${post.author.username}`} className="cursor-pointer">
+                  <span className="font-bold hover:text-purple-400 transition-colors">
+                    {post.author.username}
                   </span>
                 </Link>
-                <span className="text-sm text-zinc-300 whitespace-pre-wrap">
-                  {post.caption}
-                </span>
-              </div>
-            )}
-
-            {/* Comment Count Link */}
-            {commentCount > 0 && (
-              <button
-                onClick={() => document.getElementById('comments')?.scrollIntoView({ behavior: 'smooth' })}
-                className="text-sm text-zinc-500 hover:text-zinc-400"
-              >
-                View all {commentCount} comments
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Comments Section */}
-        <div id="comments" className="p-4">
-          <h2 className="font-semibold mb-4">Comments ({commentCount})</h2>
-
-          {/* Comment Composer */}
-          <div className="flex items-start gap-3 mb-6">
-            <div className="w-8 h-8 rounded-full bg-zinc-800 overflow-hidden flex-shrink-0">
-              {user?.avatar ? (
-                <Image
-                  src={user.avatar}
-                  alt={user.name || 'Your avatar'}
-                  width={32}
-                  height={32}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-purple-600 text-white text-xs font-bold">
-                  {user?.name?.[0]?.toUpperCase() || 'U'}
-                </div>
-              )}
-            </div>
-            <div className="flex-1">
-              <textarea
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                placeholder="Add a comment..."
-                rows={2}
-                className="w-full bg-transparent border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-500/50 resize-none"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSubmitComment();
-                  }
-                }}
-              />
-              <div className="flex justify-end mt-2">
-                <button
-                  onClick={handleSubmitComment}
-                  disabled={!newComment.trim() || isSubmittingComment}
-                  className="px-4 py-1.5 bg-purple-600 text-white text-sm font-semibold rounded-full disabled:bg-zinc-700 disabled:text-zinc-400 flex items-center gap-2"
-                >
-                  {isSubmittingComment ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Posting...
-                    </>
-                  ) : (
-                    <>
-                      <Send className="w-4 h-4" />
-                      Post
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Comments List */}
-          <div className="space-y-4">
-            {comments.map((comment) => (
-              <div key={comment.id} className="flex gap-3">
-                <Link href={`/profile/${comment.author?.username}`}>
-                  <div className="w-8 h-8 rounded-full bg-zinc-800 overflow-hidden flex-shrink-0 hover:opacity-80 transition-opacity">
-                    {comment.author?.avatar ? (
-                      <Image
-                        src={comment.author.avatar}
-                        alt={comment.author.name || 'User'}
-                        width={32}
-                        height={32}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-purple-600 text-white text-xs font-bold">
-                        {comment.author?.name?.[0]?.toUpperCase() || 'U'}
-                      </div>
-                    )}
-                  </div>
-                </Link>
-                <div className="flex-1">
-                  <div className="bg-[#1a1a1a] rounded-lg px-3 py-2">
-                    <Link href={`/profile/${comment.author?.username}`}>
-                      <span className="text-xs font-semibold hover:underline">
-                        {comment.author?.username}
-                      </span>
-                    </Link>
-                    <p className="text-sm mt-1 whitespace-pre-wrap">{comment.content}</p>
-                  </div>
-                  <div className="flex items-center gap-4 mt-1 text-xs text-zinc-500">
-                    <span>{dayjs(comment.createdAt).fromNow()}</span>
-                    {(comment.author?.id === user?.id || isOwner) && (
-                      <button
-                        onClick={() => handleDeleteComment(comment.id)}
-                        className="text-red-500 hover:text-red-400"
-                      >
-                        Delete
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-
-            {/* Loading More Comments */}
-            {isLoadingComments && (
-              <div className="flex justify-center py-4">
-                <Loader2 className="w-5 h-5 text-purple-500 animate-spin" />
-              </div>
-            )}
-
-            {/* Load More Button */}
-            {hasMoreComments && !isLoadingComments && comments.length > 0 && (
-              <button
-                onClick={handleLoadMoreComments}
-                className="text-sm text-purple-500 hover:text-purple-400 font-semibold"
-              >
-                Load more comments...
-              </button>
-            )}
-
-            {/* Empty Comments */}
-            {comments.length === 0 && !isLoadingComments && (
-              <p className="text-center text-zinc-500 py-8">
-                No comments yet. Be the first to comment!
+                <span className="text-zinc-300 ml-2">{post.caption}</span>
               </p>
             )}
           </div>
+        </article>
+
+        {/* Comments Section */}
+        <div className="p-4">
+          <h2 className="font-bold text-lg mb-4">
+            Comments {post.commentCount > 0 && `(${post.commentCount})`}
+          </h2>
+
+          {/* Comments List */}
+          {isLoadingComments ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="w-6 h-6 text-purple-500 animate-spin" />
+            </div>
+          ) : comments.length === 0 ? (
+            <div className="text-center py-8">
+              <MessageCircle className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
+              <p className="text-zinc-400">No comments yet</p>
+              <p className="text-zinc-500 text-sm">Be the first to comment!</p>
+            </div>
+          ) : (
+            <div className="space-y-4 mb-6">
+              {comments.map((comment) => {
+                const commentAvatarUrl = comment.author?.avatarUrl || comment.author?.avatar;
+                
+                return (
+                  <div key={comment.id} className="flex gap-3">
+                    <Link href={`/profile/${comment.author.username}`} className="cursor-pointer">
+                      <div className="w-8 h-8 rounded-full bg-zinc-800 overflow-hidden border border-white/10 flex-shrink-0">
+                        {commentAvatarUrl ? (
+                          <Image 
+                            src={commentAvatarUrl} 
+                            alt={comment.author.name} 
+                            width={32} 
+                            height={32} 
+                            className="w-full h-full object-cover" 
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-purple-600 text-white text-xs font-bold">
+                            {comment.author.name?.[0]?.toUpperCase() || "U"}
+                          </div>
+                        )}
+                      </div>
+                    </Link>
+                    <div className="flex-1">
+                      <div className="bg-[#1a1a1a] rounded-2xl px-4 py-2">
+                        <Link href={`/profile/${comment.author.username}`} className="cursor-pointer">
+                          <p className="font-semibold text-sm hover:text-purple-400 transition-colors">
+                            {comment.author.name}
+                          </p>
+                        </Link>
+                        <p className="text-sm text-zinc-300">{comment.content}</p>
+                      </div>
+                      <p className="text-xs text-zinc-500 mt-1 ml-4">
+                        {new Date(comment.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </main>
+
+      {/* Comment Input - Fixed Bottom */}
+      <div className="fixed bottom-0 left-0 right-0 bg-black border-t border-white/10 z-50">
+        <form onSubmit={handleSubmitComment} className="max-w-2xl mx-auto p-4 flex gap-3">
+          <input
+            type="text"
+            value={commentText}
+            onChange={(e) => setCommentText(e.target.value)}
+            placeholder="Add a comment..."
+            disabled={isSubmitting}
+            className="flex-1 bg-[#1a1a1a] border border-white/10 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:border-purple-500/50 transition-all placeholder:text-zinc-500 disabled:opacity-50"
+          />
+          <button
+            type="submit"
+            disabled={!commentText.trim() || isSubmitting}
+            className="px-6 py-2.5 bg-purple-600 text-white font-semibold rounded-full hover:bg-purple-700 disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed transition-all cursor-pointer"
+          >
+            {isSubmitting ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <Send className="w-5 h-5" />
+            )}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
