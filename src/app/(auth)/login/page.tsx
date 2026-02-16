@@ -3,10 +3,10 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/store";
-import { login, clearError } from "@/store/slices/authSlice"; // ← Update import ini
+import { login, clearError } from "@/store/slices/authSlice";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -23,9 +23,10 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
-export default function LoginPage() {
+// Pisahkan component yang menggunakan useSearchParams
+function LoginFormContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams(); // ← Ini yang butuh Suspense
   const dispatch = useDispatch<AppDispatch>();
   const { isLoading, error, isAuthenticated } = useSelector((state: RootState) => state.auth);
   
@@ -60,7 +61,6 @@ export default function LoginPage() {
   }, [dispatch]);
 
   const onSubmit = async (data: LoginFormValues) => {
-    // ← Update dispatch ini
     const resultAction = await dispatch(login(data));
     
     // Sesuai PRD: Login berhasil → redirect ke feed atau returnTo
@@ -107,14 +107,14 @@ export default function LoginPage() {
 
         {/* Form Section */}
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-          {/* ERROR MESSAGE ALERT - Sesuai PRD: "Login salah → pesan error jelas (bukan generic)" */}
+          {/* ERROR MESSAGE ALERT */}
           {error && (
             <div className="rounded-lg bg-[#460a0a] p-3 text-sm text-[#ef4444] border border-[#b91c1c] backdrop-blur-sm">
               {error}
             </div>
           )}
 
-          {/* Input Email (Menggunakan InputWithIcon) */}
+          {/* Input Email */}
           <div className="space-y-1.5">
             <label htmlFor="email" className="sr-only">Email address</label>
             <InputWithIcon 
@@ -129,7 +129,7 @@ export default function LoginPage() {
             {errors.email && <p className="text-[10px] text-red-400 pl-1">{errors.email.message}</p>}
           </div>
 
-          {/* Input Password (Menggunakan InputWithIcon) */}
+          {/* Input Password */}
           <div className="space-y-1.5">
             <label htmlFor="password" className="sr-only">Password</label>
             <InputWithIcon 
@@ -149,7 +149,7 @@ export default function LoginPage() {
             {errors.password && <p className="text-[10px] text-red-400 pl-1">{errors.password.message}</p>}
           </div>
 
-          {/* Submit Button (Menggunakan CustomButton) */}
+          {/* Submit Button */}
           <CustomButton 
             type="submit" 
             isLoading={isLoading} 
@@ -173,5 +173,23 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Main component - Wrap LoginFormContent dengan Suspense
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen w-full items-center justify-center bg-black">
+          <div className="flex flex-col items-center gap-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
+            <p className="text-white text-sm">Loading...</p>
+          </div>
+        </div>
+      }
+    >
+      <LoginFormContent />
+    </Suspense>
   );
 }

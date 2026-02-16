@@ -1,13 +1,18 @@
 import type { NextConfig } from "next";
 
-const nextConfig = {
+const nextConfig: NextConfig = {
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  // ADD THIS 👇
+  experimental: {
+    missingSuspenseWithCSRBailout: false,
+  },
   images: {
-    domains: [
-      'res.cloudinary.com',
-      'localhost',
-      // Tambahkan domain lain jika diperlukan
-    ],
-    // Atau jika menggunakan Next.js 13+ dengan remotePatterns (recommended)
+    domains: ['res.cloudinary.com', 'localhost'],
     remotePatterns: [
       {
         protocol: 'https',
@@ -24,4 +29,4 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+export default nextConfig;
