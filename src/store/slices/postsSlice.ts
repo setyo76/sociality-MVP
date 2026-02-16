@@ -4,6 +4,7 @@ import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 import { postsService } from "@/services/api";
 import { Post } from "@/types";
 
+
 interface PostsState {
   feed: Post[];
   explore: Post[];

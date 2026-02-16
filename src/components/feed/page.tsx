@@ -219,22 +219,33 @@ export default function FeedPage() {
             {currentPosts.map((post) => (
               <article key={post.id} className="bg-[#121212]/50 border border-white/10 rounded-3xl overflow-hidden hover:border-white/20 transition-all">
                 <div className="p-4 flex items-center justify-between">
-                  <Link href={`/profile/${post.author?.username || "unknown"}`}>
-                    <div className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity">
-                      <div className="w-9 h-9 rounded-full bg-zinc-800 overflow-hidden border border-white/10">
-                        {post.author?.avatar ? (
-                          <Image src={post.author.avatar} alt={post.author.name || "User"} width={36} height={36} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-purple-600 text-white text-xs font-bold">
-                            {post.author?.name?.[0]?.toUpperCase() || "U"}
-                          </div>
-                        )}
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-white">{post.author?.name || "Unknown"}</p>
-                      </div>
-                    </div>
-                  </Link>
+                  <Link 
+    href={`/profile/${post.author?.username}`} 
+    className="flex items-center gap-3 hover:opacity-80 transition-opacity group"
+  >
+    <div className="w-9 h-9 rounded-full bg-zinc-800 overflow-hidden border border-white/10 group-hover:border-purple-500/50 transition-all">
+      {post.author?.avatar || post.author?.avatarUrl ? (
+        <Image 
+          src={post.author.avatar || post.author.avatarUrl || ""} 
+          alt={post.author.name || "User"} 
+          width={36} 
+          height={36} 
+          className="w-full h-full object-cover" 
+        />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center bg-purple-600 text-white text-xs font-bold">
+          {post.author?.name?.[0]?.toUpperCase() || "U"}
+        </div>
+      )}
+    </div>
+    <div>
+      <p className="text-sm font-bold text-white group-hover:text-purple-400 transition-colors">
+        {post.author?.name || "Unknown"}
+      </p>
+      {/* Opsional: Tambahkan username kecil di bawah nama jika desain mengizinkan */}
+      <p className="text-[10px] text-zinc-500">@{post.author?.username}</p>
+    </div>
+  </Link>
                 </div>
 
                 {post.imageUrl && (
